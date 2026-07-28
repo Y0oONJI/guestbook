@@ -22,8 +22,24 @@ function makeAlias() {
   return `익명의 ${ALIASES[Math.floor(Math.random() * ALIASES.length)]}`;
 }
 
+function seededRandom(seed) {
+  let hash = 0;
+  const text = String(seed);
+  for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  return (hash % 10000) / 10000;
+}
+
+function layoutPosition(post) {
+  return {
+    x: 4 + seededRandom(`${post.id}-x`) * 68,
+    y: 5 + seededRandom(`${post.id}-y`) * 55,
+    rotate: (seededRandom(`${post.id}-r`) - 0.5) * 4
+  };
+}
+
 function postTemplate(post) {
-  return `<article class="note" style="--x:${post.x}; --y:${post.y}; --r:${post.rotate}deg" data-id="${post.id}">
+  const { x, y, rotate } = layoutPosition(post);
+  return `<article class="note" style="--x:${x}; --y:${y}; --r:${rotate}deg" data-id="${post.id}">
     <div class="window-bar"><span></span><span></span><span></span><b>posty.note</b></div>
     <div class="note-body">
       <div class="note-emoji">${post.emoji}</div>
