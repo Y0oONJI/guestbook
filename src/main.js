@@ -94,7 +94,7 @@ function bindEvents() {
     event.preventDefault();
     const text = message.value.trim();
     if (!text) return;
-    const newPost = { id: Date.now(), alias: assignedAlias, emoji: selectedEmoji, text, likes: 0, x: 38 + Math.random() * 20, y: 25 + Math.random() * 18, rotate: Math.random() * 4 - 2 };
+    const newPost = { id: Date.now(), alias: assignedAlias, emoji: selectedEmoji, text, likes: 0, x: 5 + Math.random() * 65, y: 8 + Math.random() * 60, rotate: Math.random() * 4 - 2 };
     try {
       posts.unshift(isSupabaseConfigured ? await createPost(newPost, currentUser.id) : newPost);
     } catch (error) {
