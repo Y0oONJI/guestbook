@@ -28,7 +28,7 @@ function postTemplate(post) {
     <div class="note-body">
       <div class="note-emoji">${post.emoji}</div>
       <p>${escapeHtml(post.text)}</p>
-      <footer><small>${post.alias}</small><button class="like-button" aria-label="좋아요"><i>♥</i> <em>${post.likes}</em></button></footer>
+      <footer><small>${escapeHtml(post.alias)}</small><button class="like-button" aria-label="좋아요"><i>♥</i> <em>${post.likes}</em></button></footer>
     </div>
   </article>`;
 }
