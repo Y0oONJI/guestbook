@@ -29,17 +29,28 @@ function seededRandom(seed) {
   return (hash % 10000) / 10000;
 }
 
-function layoutPosition(post) {
-  return {
-    x: 4 + seededRandom(`${post.id}-x`) * 68,
-    y: 5 + seededRandom(`${post.id}-y`) * 55,
-    rotate: (seededRandom(`${post.id}-r`) - 0.5) * 4
-  };
+const LAYOUT_BOUNDS = { xMin: 4, xMax: 72, yMin: 5, yMax: 60 };
+const LAYOUT_ATTEMPTS = 30;
+
+function layoutPosts(list) {
+  const placed = [];
+  return list.map((post) => {
+    let best = null;
+    let bestDistance = -Infinity;
+    for (let attempt = 0; attempt < LAYOUT_ATTEMPTS; attempt++) {
+      const seed = `${post.id}-${attempt}`;
+      const x = LAYOUT_BOUNDS.xMin + seededRandom(`${seed}-x`) * (LAYOUT_BOUNDS.xMax - LAYOUT_BOUNDS.xMin);
+      const y = LAYOUT_BOUNDS.yMin + seededRandom(`${seed}-y`) * (LAYOUT_BOUNDS.yMax - LAYOUT_BOUNDS.yMin);
+      const distance = placed.reduce((min, point) => Math.min(min, Math.hypot(point.x - x, point.y - y)), Infinity);
+      if (distance > bestDistance) { bestDistance = distance; best = { x, y }; }
+    }
+    placed.push(best);
+    return { ...post, x: best.x, y: best.y, rotate: (seededRandom(`${post.id}-r`) - 0.5) * 4 };
+  });
 }
 
 function postTemplate(post) {
-  const { x, y, rotate } = layoutPosition(post);
-  return `<article class="note" style="--x:${x}; --y:${y}; --r:${rotate}deg" data-id="${post.id}">
+  return `<article class="note" style="--x:${post.x}; --y:${post.y}; --r:${post.rotate}deg" data-id="${post.id}">
     <div class="window-bar"><span></span><span></span><span></span><b>posty.note</b></div>
     <div class="note-body">
       <div class="note-emoji">${post.emoji}</div>
@@ -57,7 +68,7 @@ function render() {
   document.querySelector('#app').innerHTML = `
     <main class="board">
       <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${posts.length} NOTES</span></header>
-      <section class="notes" aria-label="방명록 목록">${posts.map(postTemplate).join('')}</section>
+      <section class="notes" aria-label="방명록 목록">${layoutPosts(posts).map(postTemplate).join('')}</section>
       <p class="hint">마음에 드는 한마디에 ♥를 눌러보세요</p>
       <button class="add-button" id="open-composer" aria-label="방명록 남기기"><span>+</span><b>한마디 남기기</b></button>
       <section class="composer-backdrop" id="composer" aria-hidden="true">
