@@ -12,7 +12,8 @@ const initialPosts = [
   { id: 5, alias: '익명의 크림소다', emoji: '☁️', text: '여기는 조용하고 귀여운 방명록.', likes: 16, x: 54, y: 51, rotate: -2 }
 ];
 
-let posts = [...initialPosts];
+// Supabase를 연결하면 실제 DB 결과만 보여 준다. 샘플 글은 로컬 데모에서만 사용한다.
+let posts = isSupabaseConfigured ? [] : [...initialPosts];
 let selectedEmoji = EMOJIS[0];
 let assignedAlias = makeAlias();
 let currentUser = null;
