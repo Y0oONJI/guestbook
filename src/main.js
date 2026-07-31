@@ -94,6 +94,36 @@ function postTemplate(post) {
   </article>`;
 }
 
+const UPDATE_NOTES = {
+  version: 2,
+  title: '업데이트 소식',
+  items: [
+    '포스트잇을 마음대로 옮겨보세요 — 제목 표시줄을 잡고 드래그하면 원하는 자리에 놓을 수 있어요.',
+    '지난 글도 다시 볼 수 있어요 — 왼쪽 아래 "이전글 보기" 버튼에서 지난 날짜의 기록을 확인해보세요.'
+  ]
+};
+
+function showUpdateNotesIfNeeded() {
+  const seenVersion = Number(localStorage.getItem('updateNotesSeenVersion') || 0);
+  if (seenVersion >= UPDATE_NOTES.version) return;
+  const modal = document.createElement('div');
+  modal.className = 'update-modal-backdrop show';
+  modal.innerHTML = `
+    <div class="update-modal">
+      <button type="button" class="close-button" id="close-update-notes" aria-label="닫기">×</button>
+      <p class="eyebrow">WHAT'S NEW</p>
+      <h2>${UPDATE_NOTES.title}</h2>
+      <ul>${UPDATE_NOTES.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+    </div>`;
+  document.body.appendChild(modal);
+  const close = () => {
+    localStorage.setItem('updateNotesSeenVersion', String(UPDATE_NOTES.version));
+    modal.remove();
+  };
+  modal.querySelector('#close-update-notes').onclick = close;
+  modal.onclick = (event) => { if (event.target === modal) close(); };
+}
+
 function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
 }
@@ -106,12 +136,13 @@ function render() {
 function archiveNavMarkup() {
   if (!isSupabaseConfigured) return '';
   const dates = getArchiveDates();
+  const items = [];
+  if (view === 'archive-day') items.push('<li><button class="date-item today-item" data-date="today">↩ 오늘로 돌아가기</button></li>');
+  items.push(...dates.map((d) => `<li><button class="date-item" data-date="${d.key}">${d.label}</button></li>`));
   return `
     <div class="archive-nav">
       <div class="archive-dropdown" id="archive-dropdown">
-        ${dates.length
-          ? `<ul class="date-list">${dates.map((d) => `<li><button class="date-item" data-date="${d.key}">${d.label}</button></li>`).join('')}</ul>`
-          : '<p class="empty-archive">아직 지난 글이 없어요</p>'}
+        ${items.length ? `<ul class="date-list">${items.join('')}</ul>` : '<p class="empty-archive">아직 지난 글이 없어요</p>'}
       </div>
       <button class="archive-button" id="open-archive" aria-expanded="false">이전글 보기</button>
     </div>`;
@@ -127,8 +158,13 @@ function bindArchiveNav() {
       button.setAttribute('aria-expanded', String(isOpen));
     };
     document.querySelectorAll('.date-item').forEach((item) => item.onclick = () => {
-      archiveDate = item.dataset.date;
-      view = 'archive-day';
+      if (item.dataset.date === 'today') {
+        view = 'today';
+        archiveDate = null;
+      } else {
+        archiveDate = item.dataset.date;
+        view = 'archive-day';
+      }
       render();
     });
   }
@@ -208,7 +244,10 @@ function bindTodayEvents() {
     button.querySelector('em').textContent = post.likes;
     button.classList.remove('popped'); void button.offsetWidth; button.classList.add('popped');
   });
-  document.querySelectorAll('.note .window-bar').forEach(bar => bar.onpointerdown = (event) => startDrag(event, bar.closest('.note')));
+  const isMobile = window.matchMedia('(max-width: 700px)').matches;
+  if (!isMobile) {
+    document.querySelectorAll('.note .window-bar').forEach(bar => bar.onpointerdown = (event) => startDrag(event, bar.closest('.note')));
+  }
   document.querySelector('#composer-form').onsubmit = async (event) => {
     event.preventDefault();
     const text = message.value.trim();
@@ -281,6 +320,7 @@ function showToast(message, isError = false) {
 
 async function bootstrap() {
   render();
+  showUpdateNotesIfNeeded();
   if (!isSupabaseConfigured) return;
   try {
     currentUser = await getAnonymousUser();
