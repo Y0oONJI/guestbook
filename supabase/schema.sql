@@ -85,3 +85,28 @@ $$;
 
 revoke all on function public.toggle_post_like(uuid) from public;
 grant execute on function public.toggle_post_like(uuid) to authenticated;
+
+-- 포스트잇 위치만 옮길 수 있게 하고, 내용/닉네임/이모지는 절대 못 바꾸게 전용 함수로 제한합니다.
+create or replace function public.update_post_position(target_post_id uuid, new_x numeric, new_y numeric, new_rotation numeric)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  update public.posts
+  set position_x = new_x, position_y = new_y, rotation = new_rotation
+  where id = target_post_id;
+
+  if not found then
+    raise exception 'Post not found';
+  end if;
+end;
+$$;
+
+revoke all on function public.update_post_position(uuid, numeric, numeric, numeric) from public;
+grant execute on function public.update_post_position(uuid, numeric, numeric, numeric) to authenticated;

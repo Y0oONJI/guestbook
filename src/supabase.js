@@ -37,3 +37,8 @@ export async function toggleLike(postId) {
   if (error) throw error;
   return data;
 }
+
+export async function updatePostPosition(postId, x, y, rotate) {
+  const { error } = await supabase.rpc('update_post_position', { target_post_id: postId, new_x: x, new_y: y, new_rotation: rotate });
+  if (error) throw error;
+}

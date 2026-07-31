@@ -1,5 +1,5 @@
 import './style.css';
-import { createPost, fetchPosts, getAnonymousUser, isSupabaseConfigured, toggleLike } from './supabase.js';
+import { createPost, fetchPosts, getAnonymousUser, isSupabaseConfigured, toggleLike, updatePostPosition } from './supabase.js';
 
 const EMOJIS = ['🍀', '🍒', '🦋', '🌼', '🐈', '☁️', '🍓', '🫧'];
 const ALIASES = ['민트젤리', '보라구름', '레몬버터', '복숭아콩', '라일락밤', '크림소다'];
@@ -22,31 +22,35 @@ function makeAlias() {
   return `익명의 ${ALIASES[Math.floor(Math.random() * ALIASES.length)]}`;
 }
 
-function seededRandom(seed) {
-  let hash = 0;
-  const text = String(seed);
-  for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
-  return (hash % 10000) / 10000;
+const LAYOUT_BOUNDS = { xMin: 4, xMax: 72, yMin: 5, yMax: 60 };
+const LAYOUT_ATTEMPTS = 40;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
-const LAYOUT_BOUNDS = { xMin: 4, xMax: 72, yMin: 5, yMax: 60 };
-const LAYOUT_ATTEMPTS = 30;
-
-function layoutPosts(list) {
-  const placed = [];
-  return list.map((post) => {
-    let best = null;
-    let bestDistance = -Infinity;
-    for (let attempt = 0; attempt < LAYOUT_ATTEMPTS; attempt++) {
-      const seed = `${post.id}-${attempt}`;
-      const x = LAYOUT_BOUNDS.xMin + seededRandom(`${seed}-x`) * (LAYOUT_BOUNDS.xMax - LAYOUT_BOUNDS.xMin);
-      const y = LAYOUT_BOUNDS.yMin + seededRandom(`${seed}-y`) * (LAYOUT_BOUNDS.yMax - LAYOUT_BOUNDS.yMin);
-      const distance = placed.reduce((min, point) => Math.min(min, Math.hypot(point.x - x, point.y - y)), Infinity);
-      if (distance > bestDistance) { bestDistance = distance; best = { x, y }; }
-    }
-    placed.push(best);
-    return { ...post, x: best.x, y: best.y, rotate: (seededRandom(`${post.id}-r`) - 0.5) * 4 };
-  });
+// 겹치지 않는 새 자리를 찾는다. 글을 만들거나 옮길 때 한 번만 계산해서 DB에 저장한다.
+function findOpenSpot(existingPosts) {
+  const containerWidth = Math.min(window.innerWidth, 1440);
+  const containerHeight = Math.max(window.innerHeight - 78, 400);
+  const noteWidth = clamp(containerWidth * 0.15, 140, 195);
+  const minDistance = noteWidth * 0.95;
+  const placed = existingPosts.map((post) => ({
+    xPx: (post.x / 100) * containerWidth,
+    yPx: (post.y / 100) * containerHeight
+  }));
+  let best = null;
+  let bestDistance = -Infinity;
+  for (let attempt = 0; attempt < LAYOUT_ATTEMPTS; attempt++) {
+    const x = LAYOUT_BOUNDS.xMin + Math.random() * (LAYOUT_BOUNDS.xMax - LAYOUT_BOUNDS.xMin);
+    const y = LAYOUT_BOUNDS.yMin + Math.random() * (LAYOUT_BOUNDS.yMax - LAYOUT_BOUNDS.yMin);
+    const xPx = (x / 100) * containerWidth;
+    const yPx = (y / 100) * containerHeight;
+    const distance = placed.reduce((min, point) => Math.min(min, Math.hypot(point.xPx - xPx, point.yPx - yPx)), Infinity);
+    if (distance > bestDistance) { bestDistance = distance; best = { x, y }; }
+    if (bestDistance >= minDistance) break;
+  }
+  return { x: best.x, y: best.y, rotate: Math.random() * 4 - 2 };
 }
 
 function postTemplate(post) {
@@ -68,7 +72,7 @@ function render() {
   document.querySelector('#app').innerHTML = `
     <main class="board">
       <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${posts.length} NOTES</span></header>
-      <section class="notes" aria-label="방명록 목록">${layoutPosts(posts).map(postTemplate).join('')}</section>
+      <section class="notes" aria-label="방명록 목록">${posts.map(postTemplate).join('')}</section>
       <p class="hint">마음에 드는 한마디에 ♥를 눌러보세요</p>
       <button class="add-button" id="open-composer" aria-label="방명록 남기기"><span>+</span><b>한마디 남기기</b></button>
       <section class="composer-backdrop" id="composer" aria-hidden="true">
@@ -117,11 +121,13 @@ function bindEvents() {
     button.querySelector('em').textContent = post.likes;
     button.classList.remove('popped'); void button.offsetWidth; button.classList.add('popped');
   });
+  document.querySelectorAll('.note .window-bar').forEach(bar => bar.onpointerdown = (event) => startDrag(event, bar.closest('.note')));
   document.querySelector('#composer-form').onsubmit = async (event) => {
     event.preventDefault();
     const text = message.value.trim();
     if (!text) return;
-    const newPost = { id: Date.now(), alias: assignedAlias, emoji: selectedEmoji, text, likes: 0, x: 4 + Math.random() * 68, y: 5 + Math.random() * 55, rotate: Math.random() * 4 - 2 };
+    const spot = findOpenSpot(posts);
+    const newPost = { id: Date.now(), alias: assignedAlias, emoji: selectedEmoji, text, likes: 0, x: spot.x, y: spot.y, rotate: spot.rotate };
     try {
       posts.unshift(isSupabaseConfigured ? await createPost(newPost, currentUser.id) : newPost);
     } catch (error) {
@@ -132,6 +138,45 @@ function bindEvents() {
     render();
     showToast('포스트잇을 붙였어요! ✦');
   };
+}
+
+function startDrag(event, note) {
+  event.preventDefault();
+  const container = document.querySelector('.notes');
+  const containerRect = container.getBoundingClientRect();
+  const noteRect = note.getBoundingClientRect();
+  const offsetX = event.clientX - noteRect.left;
+  const offsetY = event.clientY - noteRect.top;
+  note.classList.add('dragging');
+  let x = Number(note.style.getPropertyValue('--x'));
+  let y = Number(note.style.getPropertyValue('--y'));
+
+  function onMove(moveEvent) {
+    const xPx = moveEvent.clientX - containerRect.left - offsetX;
+    const yPx = moveEvent.clientY - containerRect.top - offsetY;
+    x = clamp((xPx / containerRect.width) * 100, 3, 75);
+    y = clamp((yPx / containerRect.height) * 100, 4, 80);
+    note.style.setProperty('--x', x);
+    note.style.setProperty('--y', y);
+  }
+
+  function onUp() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    note.classList.remove('dragging');
+    const post = posts.find(item => String(item.id) === note.dataset.id);
+    if (!post || (post.x === x && post.y === y)) return;
+    post.x = x;
+    post.y = y;
+    if (isSupabaseConfigured) {
+      updatePostPosition(post.id, post.x, post.y, post.rotate).catch(() => {
+        showToast('위치를 저장하지 못했어요. 새로고침하면 원래대로 돌아가요.', true);
+      });
+    }
+  }
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
 }
 
 function showToast(message, isError = false) {
