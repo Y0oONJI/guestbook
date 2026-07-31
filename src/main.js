@@ -22,7 +22,7 @@ function makeAlias() {
   return `익명의 ${ALIASES[Math.floor(Math.random() * ALIASES.length)]}`;
 }
 
-const LAYOUT_BOUNDS = { xMin: 4, xMax: 72, yMin: 5, yMax: 60 };
+const LAYOUT_MARGIN = { x: 4, yMin: 5, yMax: 60 };
 const LAYOUT_ATTEMPTS = 40;
 
 function clamp(value, min, max) {
@@ -34,6 +34,8 @@ function findOpenSpot(existingPosts) {
   const containerWidth = Math.min(window.innerWidth, 1440);
   const containerHeight = Math.max(window.innerHeight - 78, 400);
   const noteWidth = clamp(containerWidth * 0.15, 140, 195);
+  const noteWidthPercent = (noteWidth / containerWidth) * 100;
+  const bounds = { xMin: LAYOUT_MARGIN.x, xMax: Math.min(100 - LAYOUT_MARGIN.x - noteWidthPercent, 95), yMin: LAYOUT_MARGIN.yMin, yMax: LAYOUT_MARGIN.yMax };
   const minDistance = noteWidth * 0.95;
   const placed = existingPosts.map((post) => ({
     xPx: (post.x / 100) * containerWidth,
@@ -42,8 +44,8 @@ function findOpenSpot(existingPosts) {
   let best = null;
   let bestDistance = -Infinity;
   for (let attempt = 0; attempt < LAYOUT_ATTEMPTS; attempt++) {
-    const x = LAYOUT_BOUNDS.xMin + Math.random() * (LAYOUT_BOUNDS.xMax - LAYOUT_BOUNDS.xMin);
-    const y = LAYOUT_BOUNDS.yMin + Math.random() * (LAYOUT_BOUNDS.yMax - LAYOUT_BOUNDS.yMin);
+    const x = bounds.xMin + Math.random() * (bounds.xMax - bounds.xMin);
+    const y = bounds.yMin + Math.random() * (bounds.yMax - bounds.yMin);
     const xPx = (x / 100) * containerWidth;
     const yPx = (y / 100) * containerHeight;
     const distance = placed.reduce((min, point) => Math.min(min, Math.hypot(point.xPx - xPx, point.yPx - yPx)), Infinity);
@@ -147,6 +149,10 @@ function startDrag(event, note) {
   const noteRect = note.getBoundingClientRect();
   const offsetX = event.clientX - noteRect.left;
   const offsetY = event.clientY - noteRect.top;
+  const noteWidthPercent = (noteRect.width / containerRect.width) * 100;
+  const noteHeightPercent = (noteRect.height / containerRect.height) * 100;
+  const xMax = Math.min(100 - noteWidthPercent - 0.5, 95);
+  const yMax = Math.min(100 - noteHeightPercent - 0.5, 80);
   note.classList.add('dragging');
   let x = Number(note.style.getPropertyValue('--x'));
   let y = Number(note.style.getPropertyValue('--y'));
@@ -154,8 +160,8 @@ function startDrag(event, note) {
   function onMove(moveEvent) {
     const xPx = moveEvent.clientX - containerRect.left - offsetX;
     const yPx = moveEvent.clientY - containerRect.top - offsetY;
-    x = clamp((xPx / containerRect.width) * 100, 3, 75);
-    y = clamp((yPx / containerRect.height) * 100, 4, 80);
+    x = clamp((xPx / containerRect.width) * 100, 0.5, xMax);
+    y = clamp((yPx / containerRect.height) * 100, 0.5, yMax);
     note.style.setProperty('--x', x);
     note.style.setProperty('--y', y);
   }

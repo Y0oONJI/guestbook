@@ -7,7 +7,7 @@ create table if not exists public.posts (
   nickname text not null check (char_length(nickname) between 4 and 40),
   content text not null check (char_length(content) between 1 and 150),
   emoji text not null check (emoji in ('🍀', '🍒', '🦋', '🌼', '🐈', '☁️', '🍓', '🫧')),
-  position_x numeric(5,2) not null check (position_x between 3 and 75),
+  position_x numeric(5,2) not null check (position_x between 0 and 95),
   position_y numeric(5,2) not null check (position_y between 4 and 80),
   rotation numeric(4,2) not null default 0 check (rotation between -4 and 4),
   likes_count integer not null default 0 check (likes_count >= 0),
