@@ -2,7 +2,12 @@ import './style.css';
 import { createPost, fetchPosts, getAnonymousUser, isSupabaseConfigured, toggleLike, updatePostPosition } from './supabase.js';
 
 const EMOJIS = ['🍀', '🍒', '🦋', '🌼', '🐈', '☁️', '🍓', '🫧'];
-const ALIASES = ['민트젤리', '보라구름', '레몬버터', '복숭아콩', '라일락밤', '크림소다'];
+const ALIASES = [
+  '민트젤리', '보라구름', '레몬버터', '복숭아콩', '라일락밤', '크림소다',
+  '딸기우유', '자몽에이드', '코코넛눈', '바닐라구슬', '오렌지노을', '자두우유',
+  '블루베리비', '망고빙수', '은하수사탕', '솜사탕구름', '청포도알', '밤하늘별',
+  '유자차향', '붕어빵맘', '호박엿가락', '산딸기잼'
+];
 
 const initialPosts = [
   { id: 1, alias: '익명의 민트젤리', emoji: '🍀', text: '오늘은 왠지 좋은 일이 생길 것 같은 날!', likes: 12, x: 7, y: 12, rotate: -2 },
@@ -19,6 +24,7 @@ let assignedAlias = makeAlias();
 let currentUser = null;
 let view = 'today';
 let archiveDate = null;
+let isLoading = isSupabaseConfigured;
 
 function makeAlias() {
   return `익명의 ${ALIASES[Math.floor(Math.random() * ALIASES.length)]}`;
@@ -181,8 +187,8 @@ function renderToday() {
   const todayPosts = getTodayPosts();
   document.querySelector('#app').innerHTML = `
     <main class="board">
-      <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${todayPosts.length} NOTES</span></header>
-      <section class="notes" aria-label="방명록 목록">${todayPosts.map(postTemplate).join('')}</section>
+      <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${isLoading ? '···' : `${todayPosts.length} NOTES`}</span></header>
+      <section class="notes" aria-label="방명록 목록">${isLoading ? '<p class="empty-board">불러오는 중...</p>' : todayPosts.length ? todayPosts.map(postTemplate).join('') : '<p class="empty-board">오늘은 아직 아무도 글을 안 남겼어요.<br />첫 포스트잇을 붙여보세요!</p>'}</section>
       ${archiveNavMarkup()}
       <button class="add-button" id="open-composer" aria-label="방명록 남기기"><span>+</span><b>한마디 남기기</b></button>
       <section class="composer-backdrop" id="composer" aria-hidden="true">
@@ -325,9 +331,11 @@ async function bootstrap() {
   try {
     currentUser = await getAnonymousUser();
     posts = await fetchPosts();
-    render();
   } catch (error) {
     showToast(`Supabase 연결 오류: ${error.message}`, true);
+  } finally {
+    isLoading = false;
+    render();
   }
 }
 

@@ -9,6 +9,7 @@ button { cursor: pointer; }
 .topbar { height: 78px; padding: 0 5.5vw; display: flex; align-items: center; gap: 24px; border-bottom: 1px solid #deded8; position: relative; z-index: 2; background: rgba(247,246,243,.8); backdrop-filter: blur(12px); }
 .brand { color: #1f2535; font: 500 25px 'DM Mono', monospace; text-decoration: none; letter-spacing: -2px; }.brand span { color: #f96167; }.topbar p { color: #74746f; font-size: 13px; }.post-count { margin-left: auto; font: 12px 'DM Mono', monospace; color: #898983; letter-spacing: .05em; }
 .notes { min-height: calc(100vh - 78px); position: relative; max-width: 1440px; margin: 0 auto; }
+.empty-board { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: max-content; max-width: 80vw; text-align: center; color: #96968e; font-size: 13px; line-height: 1.6; }
 .note { width: clamp(140px, 15vw, 195px); min-height: 145px; position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); transform: rotate(var(--r)); background: #fffefc; box-shadow: 0 18px 25px rgba(42,45,45,.15), 0 2px 5px rgba(42,45,45,.06); border-radius: 4px; transition: box-shadow .15s; }
 .note.dragging { z-index: 5; box-shadow: 0 26px 40px rgba(42,45,45,.3); }
 .note .window-bar { cursor: grab; touch-action: none; }
@@ -19,7 +20,7 @@ button { cursor: pointer; }
 .notes.readonly .window-bar { cursor: default; }.notes.readonly .like-button { pointer-events: none; opacity: .55; }
 .archive-nav { position: fixed; z-index: 4; left: 35px; bottom: 29px; }
 .archive-button { border: 1px solid #dbdbd5; color: #1f2535; background: #fffefc; border-radius: 100px; height: 55px; padding: 0 24px; font-size: 13px; box-shadow: 0 11px 24px rgba(31,37,53,.1); transition: transform .2s, border-color .2s, background .2s; }.archive-button:hover { transform: translateY(-3px); border-color: #62bca9; background: #eafff9; }
-.archive-dropdown { position: absolute; left: 0; bottom: calc(100% + 12px); width: min(260px, 70vw); max-height: 280px; overflow-y: auto; background: #fffefc; border: 1px solid #e2e2de; border-radius: 12px; box-shadow: 0 20px 45px rgba(42,45,45,.2); padding: 8px; opacity: 0; visibility: hidden; transform: translateY(8px); transition: opacity .18s, transform .18s, visibility .18s; }
+.archive-dropdown { position: absolute; left: 0; bottom: calc(100% + 12px); width: min(260px, 70vw); max-height: min(280px, 50vh); overflow-y: auto; background: #fffefc; border: 1px solid #e2e2de; border-radius: 12px; box-shadow: 0 20px 45px rgba(42,45,45,.2); padding: 8px; opacity: 0; visibility: hidden; transform: translateY(8px); transition: opacity .18s, transform .18s, visibility .18s; }
 .archive-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0); }
 .date-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .date-item { width: 100%; padding: 11px 12px; border: 0; border-radius: 7px; background: none; text-align: left; font-size: 13px; color: #1f2535; cursor: pointer; transition: .15s; }.date-item:hover { background: #eafff9; color: #1c8a6f; }
