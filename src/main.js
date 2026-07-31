@@ -284,8 +284,8 @@ function startDrag(event, note) {
   function onMove(moveEvent) {
     const xPx = moveEvent.clientX - containerRect.left - offsetX;
     const yPx = moveEvent.clientY - containerRect.top - offsetY;
-    x = clamp((xPx / containerRect.width) * 100, 0.5, xMax);
-    y = clamp((yPx / containerRect.height) * 100, 0.5, yMax);
+    x = clamp((xPx / containerRect.width) * 100, 0, xMax);
+    y = clamp((yPx / containerRect.height) * 100, 4, yMax);
     note.style.setProperty('--x', x);
     note.style.setProperty('--y', y);
   }

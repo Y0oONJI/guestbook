@@ -23,13 +23,13 @@ export async function fetchPosts() {
   if (postError) throw postError;
   if (likeError) throw likeError;
   const likedIds = new Set(likeRows.map(({ post_id }) => post_id));
-  return postRows.map((row) => ({ id: row.id, alias: row.nickname, emoji: row.emoji, text: row.content, likes: row.likes_count, x: row.position_x, y: row.position_y, rotate: row.rotation, liked: likedIds.has(row.id), createdAt: row.created_at }));
+  return postRows.map((row) => ({ id: row.id, alias: row.nickname, emoji: row.emoji, text: row.content, likes: row.likes_count, x: Number(row.position_x), y: Number(row.position_y), rotate: Number(row.rotation), liked: likedIds.has(row.id), createdAt: row.created_at }));
 }
 
 export async function createPost(post, userId) {
   const { data, error } = await supabase.from('posts').insert({ author_id: userId, nickname: post.alias, emoji: post.emoji, content: post.text, position_x: post.x, position_y: post.y, rotation: post.rotate }).select().single();
   if (error) throw error;
-  return { id: data.id, alias: data.nickname, emoji: data.emoji, text: data.content, likes: data.likes_count, x: data.position_x, y: data.position_y, rotate: data.rotation, liked: false, createdAt: data.created_at };
+  return { id: data.id, alias: data.nickname, emoji: data.emoji, text: data.content, likes: data.likes_count, x: Number(data.position_x), y: Number(data.position_y), rotate: Number(data.rotation), liked: false, createdAt: data.created_at };
 }
 
 export async function toggleLike(postId) {
