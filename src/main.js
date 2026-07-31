@@ -17,9 +17,37 @@ let posts = isSupabaseConfigured ? [] : [...initialPosts];
 let selectedEmoji = EMOJIS[0];
 let assignedAlias = makeAlias();
 let currentUser = null;
+let view = 'today';
+let archiveDate = null;
 
 function makeAlias() {
   return `익명의 ${ALIASES[Math.floor(Math.random() * ALIASES.length)]}`;
+}
+
+function kstDateKey(isoString) {
+  return new Date(isoString).toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
+}
+
+function kstDateLabel(dateKey) {
+  return new Date(`${dateKey}T00:00:00+09:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' });
+}
+
+function getTodayPosts() {
+  if (!isSupabaseConfigured) return posts;
+  const todayKey = kstDateKey(new Date().toISOString());
+  return posts.filter((post) => post.createdAt && kstDateKey(post.createdAt) === todayKey);
+}
+
+function getArchiveDates() {
+  const todayKey = kstDateKey(new Date().toISOString());
+  const keys = new Set();
+  posts.forEach((post) => { if (post.createdAt) keys.add(kstDateKey(post.createdAt)); });
+  keys.delete(todayKey);
+  return [...keys].sort((a, b) => b.localeCompare(a)).map((key) => ({ key, label: kstDateLabel(key) }));
+}
+
+function getPostsForDate(dateKey) {
+  return posts.filter((post) => post.createdAt && kstDateKey(post.createdAt) === dateKey);
 }
 
 const LAYOUT_MARGIN = { x: 4, yMin: 5, yMax: 60 };
@@ -71,11 +99,55 @@ function escapeHtml(value) {
 }
 
 function render() {
+  if (view === 'archive-day') return renderArchiveDay();
+  renderToday();
+}
+
+function archiveNavMarkup() {
+  if (!isSupabaseConfigured) return '';
+  const dates = getArchiveDates();
+  return `
+    <div class="archive-nav">
+      <div class="archive-dropdown" id="archive-dropdown">
+        ${dates.length
+          ? `<ul class="date-list">${dates.map((d) => `<li><button class="date-item" data-date="${d.key}">${d.label}</button></li>`).join('')}</ul>`
+          : '<p class="empty-archive">아직 지난 글이 없어요</p>'}
+      </div>
+      <button class="archive-button" id="open-archive" aria-expanded="false">이전글 보기</button>
+    </div>`;
+}
+
+function bindArchiveNav() {
+  const button = document.querySelector('#open-archive');
+  const dropdown = document.querySelector('#archive-dropdown');
+  if (button && dropdown) {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      const isOpen = dropdown.classList.toggle('show');
+      button.setAttribute('aria-expanded', String(isOpen));
+    };
+    document.querySelectorAll('.date-item').forEach((item) => item.onclick = () => {
+      archiveDate = item.dataset.date;
+      view = 'archive-day';
+      render();
+    });
+  }
+  const brand = document.querySelector('.brand');
+  if (brand) brand.onclick = (event) => {
+    event.preventDefault();
+    view = 'today';
+    archiveDate = null;
+    render();
+  };
+}
+
+function renderToday() {
+  const todayPosts = getTodayPosts();
   document.querySelector('#app').innerHTML = `
     <main class="board">
-      <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${posts.length} NOTES</span></header>
-      <section class="notes" aria-label="방명록 목록">${posts.map(postTemplate).join('')}</section>
-      <p class="hint">마음에 드는 한마디에 ♥를 눌러보세요</p>
+      <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${isSupabaseConfigured ? '익명의 한마디를 남겨요' : '데모 모드 · Supabase 연결 대기 중'}</p><span class="post-count">${todayPosts.length} NOTES</span></header>
+      <section class="notes" aria-label="방명록 목록">${todayPosts.map(postTemplate).join('')}</section>
+      ${archiveNavMarkup()}
       <button class="add-button" id="open-composer" aria-label="방명록 남기기"><span>+</span><b>한마디 남기기</b></button>
       <section class="composer-backdrop" id="composer" aria-hidden="true">
         <form class="composer" id="composer-form">
@@ -93,14 +165,27 @@ function render() {
       </section>
       <div class="toast" id="toast" role="status"></div>
     </main>`;
-  bindEvents();
+  bindTodayEvents();
 }
 
-function bindEvents() {
+function renderArchiveDay() {
+  const dayPosts = getPostsForDate(archiveDate);
+  const label = kstDateLabel(archiveDate);
+  document.querySelector('#app').innerHTML = `
+    <main class="board">
+      <header class="topbar"><a class="brand" href="/">posty<span>.</span></a><p>${label} 기록</p><span class="post-count">${dayPosts.length} NOTES</span></header>
+      <section class="notes readonly" aria-label="지난 방명록 목록">${dayPosts.map(postTemplate).join('')}</section>
+      ${archiveNavMarkup()}
+    </main>`;
+  bindArchiveNav();
+}
+
+function bindTodayEvents() {
   const composer = document.querySelector('#composer');
   document.querySelector('#open-composer').onclick = () => composer.classList.add('show');
   document.querySelector('#close-composer').onclick = () => composer.classList.remove('show');
   composer.onclick = (event) => { if (event.target === composer) composer.classList.remove('show'); };
+  bindArchiveNav();
   document.querySelectorAll('.emoji-choice').forEach(button => button.onclick = () => {
     selectedEmoji = button.dataset.emoji;
     document.querySelectorAll('.emoji-choice').forEach(choice => choice.classList.toggle('selected', choice === button));
@@ -128,7 +213,7 @@ function bindEvents() {
     event.preventDefault();
     const text = message.value.trim();
     if (!text) return;
-    const spot = findOpenSpot(posts);
+    const spot = findOpenSpot(getTodayPosts());
     const newPost = { id: Date.now(), alias: assignedAlias, emoji: selectedEmoji, text, likes: 0, x: spot.x, y: spot.y, rotate: spot.rotate };
     try {
       posts.unshift(isSupabaseConfigured ? await createPost(newPost, currentUser.id) : newPost);
@@ -205,5 +290,14 @@ async function bootstrap() {
     showToast(`Supabase 연결 오류: ${error.message}`, true);
   }
 }
+
+document.addEventListener('click', (event) => {
+  const dropdown = document.querySelector('#archive-dropdown');
+  const button = document.querySelector('#open-archive');
+  if (!dropdown || !dropdown.classList.contains('show')) return;
+  if (event.target === button || dropdown.contains(event.target)) return;
+  dropdown.classList.remove('show');
+  if (button) button.setAttribute('aria-expanded', 'false');
+});
 
 bootstrap();
